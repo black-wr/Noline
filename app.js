@@ -17,30 +17,19 @@ const clearBtn = document.getElementById("clearBtn");
 
 let recognition;
 let isLiveActive = false;
-let liveDraftText = "";
+let persistedText = "";
+let liveFinalText = "";
+let liveInterimText = "";
+
+function syncMinutesView() {
+  const chunks = [persistedText.trim(), liveFinalText.trim(), liveInterimText.trim()].filter(Boolean);
+  minutesEl.value = chunks.join("\n");
+}
 
 function appendText(text) {
   if (!text || !text.trim()) return;
-  const prefix = minutesEl.value.trim().length > 0 ? "\n" : "";
-  minutesEl.value += `${prefix}${text.trim()}`;
-}
-
-function removeLiveDraftIfAny() {
-  if (!liveDraftText) return;
-  if (minutesEl.value.endsWith(liveDraftText)) {
-    minutesEl.value = minutesEl.value.slice(0, -liveDraftText.length).trimEnd();
-  }
-  liveDraftText = "";
-}
-
-function renderLiveDraft(text) {
-  removeLiveDraftIfAny();
-  const clean = (text || "").trim();
-  if (!clean) return;
-
-  const prefix = minutesEl.value.trim().length > 0 ? "\n" : "";
-  liveDraftText = `${prefix}${clean}`;
-  minutesEl.value += liveDraftText;
+  persistedText = [persistedText.trim(), text.trim()].filter(Boolean).join("\n");
+  syncMinutesView();
 }
 
 function setLiveStatus(text) {
@@ -136,30 +125,29 @@ function initSpeechRecognition() {
 
   recog.onstart = () => {
     isLiveActive = true;
-    setLiveStatus("mendengarkan...");
+    setLiveStatus("mendengarkan dan langsung mencatat...");
   };
 
   recog.onresult = (event) => {
-    let interimText = "";
-    const finalChunks = [];
+    const finals = [];
+    const interims = [];
 
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+    for (let i = 0; i < event.results.length; i += 1) {
       const result = event.results[i];
-
+      const text = result[0]?.transcript || "";
       if (result.isFinal) {
-        finalChunks.push(result[0].transcript);
+        finals.push(text);
       } else {
-        interimText += result[0].transcript;
+        interims.push(text);
       }
     }
 
-    if (finalChunks.length > 0) {
-      removeLiveDraftIfAny();
-      appendText(finalChunks.join(" "));
-    }
+    liveFinalText = finals.join(" ").trim();
+    liveInterimText = interims.join(" ").trim();
+    syncMinutesView();
 
-    renderLiveDraft(interimText);
-    setLiveStatus(`mendengarkan... ${interimText.slice(-70)}`);
+    const preview = liveInterimText || liveFinalText;
+    setLiveStatus(`mendengarkan... ${preview.slice(-70)}`);
   };
 
   recog.onerror = (event) => {
@@ -170,7 +158,12 @@ function initSpeechRecognition() {
     if (isLiveActive) {
       recog.start();
     } else {
-      removeLiveDraftIfAny();
+      if (liveFinalText || liveInterimText) {
+        persistedText = [persistedText.trim(), liveFinalText.trim(), liveInterimText.trim()].filter(Boolean).join("\n");
+        liveFinalText = "";
+        liveInterimText = "";
+        syncMinutesView();
+      }
       setLiveStatus("berhenti.");
     }
   };
@@ -336,9 +329,11 @@ downloadBtn.addEventListener("click", () => {
 clearBtn.addEventListener("click", () => {
   const confirmed = confirm("Yakin ingin mengosongkan transkrip dan notulen rapi?");
   if (!confirmed) return;
-  minutesEl.value = "";
+  persistedText = "";
+  liveFinalText = "";
+  liveInterimText = "";
+  syncMinutesView();
   structuredMinutesEl.value = "";
-  liveDraftText = "";
   setGenerateStatus("belum digenerate.");
 });
 
