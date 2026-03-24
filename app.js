@@ -28,6 +28,33 @@ function setFileStatus(text) {
   fileStatusEl.textContent = `Status: ${text}`;
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      const base64 = String(result).split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Gagal membaca file audio."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getMimeType(file) {
+  return file.type && file.type.trim() ? file.type : "audio/mpeg";
+}
+
+function extractGeminiText(json) {
+  const candidates = json?.candidates || [];
+  const parts = candidates[0]?.content?.parts || [];
+  return parts
+    .filter((part) => typeof part?.text === "string")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+}
+
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -112,7 +139,7 @@ transcribeFileBtn.addEventListener("click", async () => {
   const file = audioFileEl.files[0];
 
   if (!apiKey) {
-    setFileStatus("isi OpenAI API Key dulu.");
+    setFileStatus("isi Gemini API Key dulu.");
     return;
   }
 
@@ -121,21 +148,40 @@ transcribeFileBtn.addEventListener("click", async () => {
     return;
   }
 
-  setFileStatus("mengunggah dan memproses transkrip...");
+  setFileStatus("membaca file audio...");
 
   try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("model", "whisper-1");
-    formData.append("language", languageEl.value);
+    const base64Audio = await fileToBase64(file);
+    setFileStatus("mengirim ke Gemini untuk transkripsi...");
 
-    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: formData,
-    });
+    const promptByLang = {
+      id: "Transkripsikan audio ini ke teks Bahasa Indonesia. Rapikan tanda baca dan pisahkan paragraf bila perlu.",
+      en: "Transcribe this audio into English text. Add clean punctuation and paragraph breaks if needed.",
+      ms: "Transkripsikan audio ini ke teks Bahasa Melayu. Kemas tanda baca dan perenggan jika perlu.",
+    };
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: promptByLang[languageEl.value] || promptByLang.id },
+                {
+                  inlineData: {
+                    mimeType: getMimeType(file),
+                    data: base64Audio,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -143,11 +189,10 @@ transcribeFileBtn.addEventListener("click", async () => {
     }
 
     const result = await response.json();
-    const transcript = result.text || "";
+    const transcript = extractGeminiText(result);
 
-    if (!transcript.trim()) {
-      setFileStatus("transkrip kosong. coba file lain.");
-      return;
+    if (!transcript) {
+      throw new Error("Gemini tidak mengembalikan teks transkrip.");
     }
 
     appendText(`[Transkrip file: ${file.name}]\n${transcript}`);

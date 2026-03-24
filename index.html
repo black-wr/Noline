@@ -16,7 +16,6 @@
         --warn: #f5b14d;
         --danger: #ef6b6b;
       }
-
       @media (prefers-color-scheme: light) {
         :root {
           --bg: #f3f6ff;
@@ -26,24 +25,12 @@
           --accent: #2563eb;
         }
       }
-
       * {
         box-sizing: border-box;
         font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
-
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-      }
-
-      .container {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 24px;
-      }
-
+      body { margin: 0; background: var(--bg); color: var(--text); }
+      .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
       .card {
         background: var(--card);
         border: 1px solid color-mix(in oklab, var(--muted) 20%, transparent);
@@ -51,90 +38,33 @@
         padding: 16px;
         margin-bottom: 16px;
       }
-
-      h1 {
-        margin: 0 0 12px;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 16px;
-      }
-
+      h1 { margin: 0 0 12px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
       textarea {
-        width: 100%;
-        min-height: 280px;
-        padding: 12px;
-        border-radius: 10px;
+        width: 100%; min-height: 280px; padding: 12px; border-radius: 10px;
         border: 1px solid color-mix(in oklab, var(--muted) 30%, transparent);
-        background: transparent;
-        color: var(--text);
+        background: transparent; color: var(--text);
       }
-
-      input[type="password"],
-      select,
-      input[type="file"] {
-        width: 100%;
-        margin: 8px 0 12px;
-        padding: 10px;
-        border-radius: 10px;
+      input[type="password"], select, input[type="file"] {
+        width: 100%; margin: 8px 0 12px; padding: 10px; border-radius: 10px;
         border: 1px solid color-mix(in oklab, var(--muted) 30%, transparent);
-        background: transparent;
-        color: var(--text);
+        background: transparent; color: var(--text);
       }
-
       button {
-        border: none;
-        border-radius: 10px;
-        padding: 10px 14px;
-        margin-right: 8px;
-        margin-bottom: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        color: white;
-        background: var(--accent);
+        border: none; border-radius: 10px; padding: 10px 14px; margin-right: 8px; margin-bottom: 8px;
+        font-weight: 600; cursor: pointer; color: white; background: var(--accent);
       }
-
-      button.secondary {
-        background: #64748b;
-      }
-
-      button.success {
-        background: var(--ok);
-      }
-
-      button.warning {
-        background: var(--warn);
-        color: #111;
-      }
-
-      button.danger {
-        background: var(--danger);
-      }
-
-      .status {
-        font-size: 0.9rem;
-        color: var(--muted);
-      }
-
+      button.secondary { background: #64748b; }
+      button.success { background: var(--ok); }
+      button.warning { background: var(--warn); color: #111; }
+      button.danger { background: var(--danger); }
+      .status { font-size: 0.9rem; color: var(--muted); }
       .pill {
-        display: inline-block;
-        margin-left: 8px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        background: color-mix(in oklab, var(--accent) 22%, transparent);
+        display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+        font-size: 0.78rem; background: color-mix(in oklab, var(--accent) 22%, transparent);
       }
-
-      .footer-note {
-        font-size: 0.85rem;
-        color: var(--muted);
-      }
-
-      ul {
-        margin: 8px 0 0;
-      }
+      .footer-note { font-size: 0.85rem; color: var(--muted); }
+      ul { margin: 8px 0 0; }
     </style>
   </head>
   <body>
@@ -142,19 +72,18 @@
       <div class="card">
         <h1>📝 Notulen Pintar</h1>
         <p>
-          Aplikasi ini bisa mencatat notulen <strong>secara live</strong> (dari mikrofon)
-          dan juga membuat transkrip dari <strong>rekaman suara yang sudah ada</strong>
-          (unggah file audio).
+          Aplikasi ini bisa mencatat notulen <strong>secara live</strong> (mikrofon)
+          dan membuat transkrip dari <strong>rekaman suara</strong> (upload audio).
         </p>
       </div>
 
       <section class="grid">
         <article class="card">
           <h2>1) Konfigurasi</h2>
-          <label for="apiKey">OpenAI API Key (hanya dipakai di browser Anda)</label>
-          <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+          <label for="apiKey">Gemini API Key (disimpan sementara di browser)</label>
+          <input id="apiKey" type="password" placeholder="AIza..." autocomplete="off" />
 
-          <label for="language">Bahasa transkripsi</label>
+          <label for="language">Bahasa notulen</label>
           <select id="language">
             <option value="id">Indonesia</option>
             <option value="en">English</option>
@@ -162,8 +91,8 @@
           </select>
 
           <p class="footer-note">
-            Catatan: Untuk transkrip dari file audio, aplikasi memanggil endpoint
-            <code>/v1/audio/transcriptions</code> dengan model <code>whisper-1</code>.
+            Mode upload audio menggunakan Gemini API (<code>gemini-2.0-flash</code>)
+            dengan audio inline base64.
           </p>
         </article>
 
@@ -175,13 +104,13 @@
           </div>
           <p id="liveStatus" class="status">Status: belum aktif.</p>
           <ul class="footer-note">
-            <li>Memerlukan browser yang mendukung SpeechRecognition (Chrome/Edge modern).</li>
-            <li>Gunakan di ruangan cukup tenang untuk hasil lebih akurat.</li>
+            <li>Butuh browser yang mendukung SpeechRecognition (Chrome/Edge).</li>
+            <li>Hasil live dipengaruhi noise dan kualitas mic.</li>
           </ul>
         </article>
 
         <article class="card">
-          <h2>3) Transkrip dari Rekaman <span class="pill">Upload Audio</span></h2>
+          <h2>3) Transkrip Rekaman <span class="pill">Gemini</span></h2>
           <input id="audioFile" type="file" accept="audio/*" />
           <div>
             <button id="transcribeFile" class="warning">Transkrip File</button>
