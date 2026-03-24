@@ -17,11 +17,30 @@ const clearBtn = document.getElementById("clearBtn");
 
 let recognition;
 let isLiveActive = false;
+let liveDraftText = "";
 
 function appendText(text) {
   if (!text || !text.trim()) return;
   const prefix = minutesEl.value.trim().length > 0 ? "\n" : "";
   minutesEl.value += `${prefix}${text.trim()}`;
+}
+
+function removeLiveDraftIfAny() {
+  if (!liveDraftText) return;
+  if (minutesEl.value.endsWith(liveDraftText)) {
+    minutesEl.value = minutesEl.value.slice(0, -liveDraftText.length).trimEnd();
+  }
+  liveDraftText = "";
+}
+
+function renderLiveDraft(text) {
+  removeLiveDraftIfAny();
+  const clean = (text || "").trim();
+  if (!clean) return;
+
+  const prefix = minutesEl.value.trim().length > 0 ? "\n" : "";
+  liveDraftText = `${prefix}${clean}`;
+  minutesEl.value += liveDraftText;
 }
 
 function setLiveStatus(text) {
@@ -122,17 +141,24 @@ function initSpeechRecognition() {
 
   recog.onresult = (event) => {
     let interimText = "";
+    const finalChunks = [];
 
     for (let i = event.resultIndex; i < event.results.length; i += 1) {
       const result = event.results[i];
 
       if (result.isFinal) {
-        appendText(result[0].transcript);
+        finalChunks.push(result[0].transcript);
       } else {
         interimText += result[0].transcript;
       }
     }
 
+    if (finalChunks.length > 0) {
+      removeLiveDraftIfAny();
+      appendText(finalChunks.join(" "));
+    }
+
+    renderLiveDraft(interimText);
     setLiveStatus(`mendengarkan... ${interimText.slice(-70)}`);
   };
 
@@ -144,6 +170,7 @@ function initSpeechRecognition() {
     if (isLiveActive) {
       recog.start();
     } else {
+      removeLiveDraftIfAny();
       setLiveStatus("berhenti.");
     }
   };
@@ -311,6 +338,7 @@ clearBtn.addEventListener("click", () => {
   if (!confirmed) return;
   minutesEl.value = "";
   structuredMinutesEl.value = "";
+  liveDraftText = "";
   setGenerateStatus("belum digenerate.");
 });
 

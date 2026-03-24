@@ -2,7 +2,7 @@
 
 Aplikasi web untuk mencatat notulen rapat dengan 2 alur:
 
-1. **Live transcription real-time** dari mikrofon (langsung masuk ke transkrip, tidak perlu stop dulu)
+1. **Live transcription real-time** dari mikrofon (teks interim langsung terlihat, lalu otomatis difinalkan tanpa perlu stop dulu)
 2. **Transkripsi file rekaman audio** via **Gemini API**
 
 Selain itu, aplikasi bisa **generate notulen rapi otomatis** dari transkrip mentah:
