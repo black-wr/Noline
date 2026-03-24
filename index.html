@@ -25,10 +25,7 @@
           --accent: #2563eb;
         }
       }
-      * {
-        box-sizing: border-box;
-        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      }
+      * { box-sizing: border-box; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
       body { margin: 0; background: var(--bg); color: var(--text); }
       .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
       .card {
@@ -41,7 +38,7 @@
       h1 { margin: 0 0 12px; }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
       textarea {
-        width: 100%; min-height: 280px; padding: 12px; border-radius: 10px;
+        width: 100%; min-height: 240px; padding: 12px; border-radius: 10px;
         border: 1px solid color-mix(in oklab, var(--muted) 30%, transparent);
         background: transparent; color: var(--text);
       }
@@ -72,8 +69,8 @@
       <div class="card">
         <h1>📝 Notulen Pintar</h1>
         <p>
-          Aplikasi ini bisa mencatat notulen <strong>secara live</strong> (mikrofon)
-          dan membuat transkrip dari <strong>rekaman suara</strong> (upload audio).
+          Notulen sekarang langsung masuk saat suara terdeteksi (real-time),
+          lalu bisa dirapikan otomatis jadi poin penting + sesi tanya jawab.
         </p>
       </div>
 
@@ -91,21 +88,20 @@
           </select>
 
           <p class="footer-note">
-            Mode upload audio menggunakan Gemini API (<code>gemini-2.0-flash</code>)
-            dengan audio inline base64.
+            Upload audio & perapihan notulen memakai Gemini <code>gemini-2.0-flash</code>.
           </p>
         </article>
 
         <article class="card">
-          <h2>2) Notulen Live <span class="pill">Web Speech API</span></h2>
+          <h2>2) Notulen Live <span class="pill">Langsung Tersalin</span></h2>
           <div>
             <button id="startLive" class="success">Mulai Live</button>
             <button id="stopLive" class="danger">Stop Live</button>
           </div>
           <p id="liveStatus" class="status">Status: belum aktif.</p>
           <ul class="footer-note">
-            <li>Butuh browser yang mendukung SpeechRecognition (Chrome/Edge).</li>
-            <li>Hasil live dipengaruhi noise dan kualitas mic.</li>
+            <li>Teks final dari suara akan langsung ditambahkan ke notulen.</li>
+            <li>Butuh browser dengan dukungan SpeechRecognition (Chrome/Edge).</li>
           </ul>
         </article>
 
@@ -120,13 +116,22 @@
       </section>
 
       <section class="card">
-        <h2>Hasil Notulen</h2>
-        <textarea id="minutes" placeholder="Hasil notulen akan muncul di sini..."></textarea>
+        <h2>Transkrip Mentah (Real-time)</h2>
+        <textarea id="minutes" placeholder="Transkrip mentah akan muncul di sini..."></textarea>
         <div style="margin-top: 12px;">
-          <button id="copyBtn">Salin Notulen</button>
+          <button id="copyBtn">Salin</button>
           <button id="downloadBtn" class="secondary">Unduh .txt</button>
           <button id="clearBtn" class="danger">Kosongkan</button>
         </div>
+      </section>
+
+      <section class="card">
+        <h2>Notulen Rapi (Poin Penting + Tanya Jawab)</h2>
+        <div>
+          <button id="generateBtn" class="success">Generate Notulen Rapi</button>
+        </div>
+        <p id="generateStatus" class="status">Status: belum digenerate.</p>
+        <textarea id="structuredMinutes" placeholder="Hasil notulen rapi akan tampil di sini..."></textarea>
       </section>
     </main>
 

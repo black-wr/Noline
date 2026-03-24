@@ -1,13 +1,16 @@
 const minutesEl = document.getElementById("minutes");
+const structuredMinutesEl = document.getElementById("structuredMinutes");
 const apiKeyEl = document.getElementById("apiKey");
 const languageEl = document.getElementById("language");
 const liveStatusEl = document.getElementById("liveStatus");
 const fileStatusEl = document.getElementById("fileStatus");
+const generateStatusEl = document.getElementById("generateStatus");
 const audioFileEl = document.getElementById("audioFile");
 
 const startLiveBtn = document.getElementById("startLive");
 const stopLiveBtn = document.getElementById("stopLive");
 const transcribeFileBtn = document.getElementById("transcribeFile");
+const generateBtn = document.getElementById("generateBtn");
 const copyBtn = document.getElementById("copyBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const clearBtn = document.getElementById("clearBtn");
@@ -16,6 +19,7 @@ let recognition;
 let isLiveActive = false;
 
 function appendText(text) {
+  if (!text || !text.trim()) return;
   const prefix = minutesEl.value.trim().length > 0 ? "\n" : "";
   minutesEl.value += `${prefix}${text.trim()}`;
 }
@@ -26,6 +30,10 @@ function setLiveStatus(text) {
 
 function setFileStatus(text) {
   fileStatusEl.textContent = `Status: ${text}`;
+}
+
+function setGenerateStatus(text) {
+  generateStatusEl.textContent = `Status: ${text}`;
 }
 
 function fileToBase64(file) {
@@ -55,6 +63,43 @@ function extractGeminiText(json) {
     .trim();
 }
 
+async function callGemini({ apiKey, promptText, inlineAudio }) {
+  const parts = [{ text: promptText }];
+  if (inlineAudio) {
+    parts.push({
+      inlineData: {
+        mimeType: inlineAudio.mimeType,
+        data: inlineAudio.base64,
+      },
+    });
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts }],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`HTTP ${response.status}: ${errText}`);
+  }
+
+  const result = await response.json();
+  const text = extractGeminiText(result);
+
+  if (!text) {
+    throw new Error("Gemini tidak mengembalikan teks.");
+  }
+
+  return text;
+}
+
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -70,8 +115,6 @@ function initSpeechRecognition() {
   recog.interimResults = true;
   recog.lang = languageEl.value || "id-ID";
 
-  let finalBuffer = "";
-
   recog.onstart = () => {
     isLiveActive = true;
     setLiveStatus("mendengarkan...");
@@ -79,17 +122,18 @@ function initSpeechRecognition() {
 
   recog.onresult = (event) => {
     let interimText = "";
+
     for (let i = event.resultIndex; i < event.results.length; i += 1) {
       const result = event.results[i];
+
       if (result.isFinal) {
-        finalBuffer += `${result[0].transcript} `;
+        appendText(result[0].transcript);
       } else {
         interimText += result[0].transcript;
       }
     }
 
-    const previewText = finalBuffer + interimText;
-    setLiveStatus(`mendengarkan... ${previewText.slice(-70)}`);
+    setLiveStatus(`mendengarkan... ${interimText.slice(-70)}`);
   };
 
   recog.onerror = (event) => {
@@ -97,11 +141,6 @@ function initSpeechRecognition() {
   };
 
   recog.onend = () => {
-    if (finalBuffer.trim()) {
-      appendText(finalBuffer.trim());
-      finalBuffer = "";
-    }
-
     if (isLiveActive) {
       recog.start();
     } else {
@@ -152,7 +191,6 @@ transcribeFileBtn.addEventListener("click", async () => {
 
   try {
     const base64Audio = await fileToBase64(file);
-    setFileStatus("mengirim ke Gemini untuk transkripsi...");
 
     const promptByLang = {
       id: "Transkripsikan audio ini ke teks Bahasa Indonesia. Rapikan tanda baca dan pisahkan paragraf bila perlu.",
@@ -160,40 +198,13 @@ transcribeFileBtn.addEventListener("click", async () => {
       ms: "Transkripsikan audio ini ke teks Bahasa Melayu. Kemas tanda baca dan perenggan jika perlu.",
     };
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: promptByLang[languageEl.value] || promptByLang.id },
-                {
-                  inlineData: {
-                    mimeType: getMimeType(file),
-                    data: base64Audio,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    );
+    setFileStatus("mengirim ke Gemini untuk transkripsi...");
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errText}`);
-    }
-
-    const result = await response.json();
-    const transcript = extractGeminiText(result);
-
-    if (!transcript) {
-      throw new Error("Gemini tidak mengembalikan teks transkrip.");
-    }
+    const transcript = await callGemini({
+      apiKey,
+      promptText: promptByLang[languageEl.value] || promptByLang.id,
+      inlineAudio: { mimeType: getMimeType(file), base64: base64Audio },
+    });
 
     appendText(`[Transkrip file: ${file.name}]\n${transcript}`);
     setFileStatus("selesai ✅");
@@ -202,17 +213,87 @@ transcribeFileBtn.addEventListener("click", async () => {
   }
 });
 
+generateBtn.addEventListener("click", async () => {
+  const apiKey = apiKeyEl.value.trim();
+  const rawMinutes = minutesEl.value.trim();
+
+  if (!apiKey) {
+    setGenerateStatus("isi Gemini API Key dulu.");
+    return;
+  }
+
+  if (!rawMinutes) {
+    setGenerateStatus("transkrip masih kosong.");
+    return;
+  }
+
+  setGenerateStatus("menghasilkan notulen rapi...");
+
+  const promptByLang = {
+    id: `Kamu adalah sekretaris rapat profesional.
+Susun transkrip rapat berikut menjadi notulen yang rapi dalam Bahasa Indonesia.
+Format wajib:
+1) Ringkasan rapat (3-6 poin)
+2) Poin penting / keputusan (bullet points)
+3) Daftar tanya jawab peserta (format: Penanya - Pertanyaan - Jawaban)
+4) Action items (PIC, tugas, deadline jika ada)
+5) Catatan lanjutan
+Jika ada informasi yang tidak jelas, tandai sebagai "Perlu klarifikasi".
+
+Transkrip:
+${rawMinutes}`,
+    en: `You are a professional meeting secretary.
+Turn this transcript into clean meeting minutes in English.
+Required format:
+1) Meeting summary (3-6 bullets)
+2) Key points / decisions
+3) Q&A list (Asker - Question - Answer)
+4) Action items (Owner, task, deadline if available)
+5) Follow-up notes
+Mark unclear information as "Needs clarification".
+
+Transcript:
+${rawMinutes}`,
+    ms: `Anda ialah setiausaha mesyuarat profesional.
+Susun transkrip ini menjadi minit mesyuarat yang kemas dalam Bahasa Melayu.
+Format wajib:
+1) Ringkasan mesyuarat (3-6 poin)
+2) Poin penting / keputusan
+3) Senarai soal jawab (Penanya - Soalan - Jawapan)
+4) Action items (PIC, tugas, tarikh akhir jika ada)
+5) Nota susulan
+Tandakan maklumat tidak jelas sebagai "Perlu penjelasan".
+
+Transkrip:
+${rawMinutes}`,
+  };
+
+  try {
+    const structured = await callGemini({
+      apiKey,
+      promptText: promptByLang[languageEl.value] || promptByLang.id,
+    });
+
+    structuredMinutesEl.value = structured;
+    setGenerateStatus("selesai ✅");
+  } catch (error) {
+    setGenerateStatus(`gagal: ${error.message}`);
+  }
+});
+
 copyBtn.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(minutesEl.value);
-    alert("Notulen disalin ke clipboard.");
+    alert("Transkrip mentah disalin ke clipboard.");
   } catch {
     alert("Gagal menyalin. Pastikan browser mengizinkan clipboard.");
   }
 });
 
 downloadBtn.addEventListener("click", () => {
-  const content = minutesEl.value || "";
+  const raw = minutesEl.value || "";
+  const structured = structuredMinutesEl.value || "";
+  const content = `=== TRANSKRIP MENTAH ===\n${raw}\n\n=== NOTULEN RAPI ===\n${structured}`;
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -226,9 +307,11 @@ downloadBtn.addEventListener("click", () => {
 });
 
 clearBtn.addEventListener("click", () => {
-  const confirmed = confirm("Yakin ingin mengosongkan notulen?");
+  const confirmed = confirm("Yakin ingin mengosongkan transkrip dan notulen rapi?");
   if (!confirmed) return;
   minutesEl.value = "";
+  structuredMinutesEl.value = "";
+  setGenerateStatus("belum digenerate.");
 });
 
 audioFileEl.addEventListener("change", () => {

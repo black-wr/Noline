@@ -1,9 +1,15 @@
 # Notulen Pintar (Web App)
 
-Aplikasi web sederhana untuk mencatat notulen dengan dua mode:
+Aplikasi web untuk mencatat notulen rapat dengan 2 alur:
 
-1. **Live transcription** dari mikrofon (Web Speech API)
-2. **Transkripsi file rekaman audio** menggunakan **Gemini API**
+1. **Live transcription real-time** dari mikrofon (langsung masuk ke transkrip, tidak perlu stop dulu)
+2. **Transkripsi file rekaman audio** via **Gemini API**
+
+Selain itu, aplikasi bisa **generate notulen rapi otomatis** dari transkrip mentah:
+- ringkasan rapat,
+- poin/keputusan penting,
+- daftar tanya jawab peserta,
+- action items.
 
 ## Cara menjalankan
 
@@ -16,13 +22,12 @@ Buka `http://localhost:8000` di browser.
 ## Cara pakai
 
 1. Isi **Gemini API Key**.
-2. Pilih bahasa notulen.
-3. Untuk mode live: klik **Mulai Live**, lalu **Stop Live**.
-4. Untuk rekaman: upload file audio, lalu klik **Transkrip File**.
-5. Hasil notulen bisa disalin atau diunduh sebagai `.txt`.
+2. Klik **Mulai Live** untuk transkrip real-time (atau upload file audio lalu klik **Transkrip File**).
+3. Setelah transkrip terkumpul, klik **Generate Notulen Rapi**.
+4. Simpan hasil dengan **Unduh .txt**.
 
 ## Catatan penting
 
-- Mode live membutuhkan browser dengan dukungan `SpeechRecognition` (Chrome/Edge modern).
-- Transkripsi rekaman menggunakan endpoint Gemini `v1beta/models/gemini-2.0-flash:generateContent` dengan audio `inlineData` (base64).
-- Demi keamanan, **jangan hardcode API key** di source code. Untuk production, sebaiknya panggil API lewat backend/proxy.
+- Browser live transcription: Chrome/Edge modern (dukungan `SpeechRecognition`).
+- Endpoint Gemini yang dipakai: `v1beta/models/gemini-2.0-flash:generateContent`.
+- Jangan hardcode API key di source code. Untuk production, gunakan backend/proxy.
